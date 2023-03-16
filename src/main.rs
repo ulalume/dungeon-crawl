@@ -10,14 +10,40 @@ use ldtk::Ldtk;
 use pos::{get_cat_transform, get_player_transform, get_wall_transform, Direction, Position};
 use std::{f32::consts::PI, time::Duration};
 
+struct MessageEvent(String);
+
+struct MyTransformLens {
+    start: (Vec3, Quat),
+    end: (Vec3, Quat),
+}
+impl Lens<Transform> for MyTransformLens {
+    fn lerp(&mut self, target: &mut Transform, ratio: f32) {
+        let (start_vec, start_rot) = self.start;
+        let (end_vec, end_rot) = self.end;
+        target.translation = start_vec + (end_vec - start_vec) * ratio;
+        target.rotation = start_rot.slerp(end_rot, ratio);
+    }
+}
+
+#[derive(Component)]
+struct MessageText;
+
+#[derive(Component)]
+struct Cat;
+
+#[derive(Resource)]
+struct CatAnimation(Handle<AnimationClip>);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(TweeningPlugin)
         .add_plugin(WorldInspectorPlugin::default())
+        .add_event::<MessageEvent>()
         .add_startup_system(setup)
         .add_system(setup_cat_animation)
         .add_system(update_player)
+        .add_system(update_message)
         .run();
 }
 
@@ -91,7 +117,7 @@ fn setup(
     };
     let spawn_cat = |commands: &mut Commands, direction: &Direction, x: f32, z: f32| {
         commands.spawn((
-            Cat {},
+            Cat,
             SceneBundle {
                 scene: scene_cat.clone(),
                 transform: get_cat_transform(direction, x, z),
@@ -134,6 +160,28 @@ fn setup(
         spawn_floor(&mut commands, tile.x as f32, tile.z as f32);
     }
 
+    commands.spawn((
+        TextBundle::from_section(
+            "",
+            TextStyle {
+                font: asset_server.load("k8x12.ttf"),
+                font_size: 36.0,
+                color: Color::WHITE,
+            },
+        )
+        .with_text_alignment(TextAlignment::Center)
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            position: UiRect {
+                bottom: Val::Px(10.0),
+                left: Val::Px(20.0),
+                ..default()
+            },
+            ..default()
+        }),
+        MessageText,
+    ));
+
     // spawn camera
     commands.spawn((
         Player,
@@ -159,6 +207,7 @@ fn update_player(
     level: Res<Level>,
     mut commands: Commands,
     mut query: Query<(Entity, &Transform, &mut Position), With<Player>>,
+    mut message_events: EventWriter<MessageEvent>,
 ) {
     if query.is_empty() {
         return;
@@ -205,25 +254,16 @@ fn update_player(
                 end: (new_transform.translation, new_transform.rotation),
             },
         )));
-}
 
-struct MyTransformLens {
-    start: (Vec3, Quat),
-    end: (Vec3, Quat),
-}
-impl Lens<Transform> for MyTransformLens {
-    fn lerp(&mut self, target: &mut Transform, ratio: f32) {
-        let (start_vec, start_rot) = self.start;
-        let (end_vec, end_rot) = self.end;
-        target.translation = start_vec + (end_vec - start_vec) * ratio;
-        target.rotation = start_rot.slerp(end_rot, ratio);
+    match level.get_entity(position.x, position.z) {
+        Some(entity) => {
+            if entity.message.is_some() {
+                message_events.send(MessageEvent(entity.message.clone().unwrap()))
+            }
+        }
+        _ => message_events.send(MessageEvent("".to_owned())),
     }
 }
-
-#[derive(Component)]
-struct Cat {}
-#[derive(Resource)]
-struct CatAnimation(Handle<AnimationClip>);
 
 fn check_descendant<T: Component>(
     components: &Query<Entity, With<T>>,
@@ -249,5 +289,15 @@ fn setup_cat_animation(
         .filter(|(entity, _)| check_descendant(&cats, &parents, entity.to_owned()))
     {
         animation_player.play(animation.0.clone_weak()).repeat();
+    }
+}
+
+fn update_message(
+    mut message_events: EventReader<MessageEvent>,
+    mut query: Query<&mut Text, With<MessageText>>,
+) {
+    let mut text = query.single_mut();
+    for ev in message_events.iter() {
+        text.sections[0].value = ev.0.clone()
     }
 }

@@ -20,6 +20,19 @@ impl Level {
     pub fn get_tile(&self, x: i32, z: i32) -> Option<&Tile> {
         self.tiles.iter().find(|t| t.x == x && t.z == z)
     }
+
+    pub fn get_entity(&self, x: i32, z: i32) -> Option<&Entity> {
+        let entity = self.entities.iter().find(|e| e.x == x && e.z == z);
+
+        return if entity.is_none() {
+            None
+        } else {
+            match entity.unwrap().entity_type {
+                EntityType::PlayerStart => None,
+                EntityType::Cat => entity,
+            }
+        };
+    }
 }
 #[derive(Clone)]
 pub struct Tile {
@@ -66,8 +79,8 @@ impl From<&Ldtk> for Dungeon {
                 .map(|level| {
                     let mut tiles: Vec<Tile> = vec![];
                     let mut entities: Vec<Entity> = vec![];
-                    let width = i32::try_from(level.px_wid / default_grid_size).unwrap();
-                    let length = i32::try_from(level.px_hei / default_grid_size).unwrap();
+                    let width = (level.px_wid / default_grid_size) as i32;
+                    let length = (level.px_hei / default_grid_size) as i32;
 
                     if let Some(layer_instances) =
                         Option::Some(level).and_then(|level| level.layer_instances.as_ref())
@@ -98,11 +111,10 @@ impl From<&Ldtk> for Dungeon {
                                                         .unwrap_or(Direction::Right),
                                                 )
                                             });
-                                        println!("{}", entity.identifier);
                                         let identifier =
                                             entity.identifier.parse::<EntityType>().unwrap();
-                                        let x = i32::try_from(entity.grid[0]).unwrap();
-                                        let z = i32::try_from(entity.grid[1]).unwrap();
+                                        let x = entity.grid[0] as i32;
+                                        let z = entity.grid[1] as i32;
 
                                         let message = entity
                                             .field_instances
@@ -138,8 +150,8 @@ impl From<&Ldtk> for Dungeon {
                                     .grid_tiles
                                     .iter()
                                     .map(|tile| {
-                                        let x = i32::try_from(tile.px[0] / grid_size.0).unwrap();
-                                        let z = i32::try_from(tile.px[1] / grid_size.1).unwrap();
+                                        let x = (tile.px[0] / grid_size.0) as i32;
+                                        let z = (tile.px[1] / grid_size.1) as i32;
                                         let directions = tileset
                                             .custom_data
                                             .iter()
