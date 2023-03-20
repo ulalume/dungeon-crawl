@@ -1,15 +1,24 @@
 use crate::ldtk::Ldtk;
-use crate::pos::Direction;
+use crate::position::{get_transform, Direction};
 use bevy::prelude::*;
 use std::collections::HashSet;
 use std::convert::From;
+use std::f32::consts::PI;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
+#[derive(Resource, Clone)]
 pub struct Dungeon {
     pub levels: Vec<Level>,
 }
-#[derive(Resource, Clone)]
+impl FromWorld for Dungeon {
+    fn from_world(_: &mut World) -> Self {
+        let lgtk = serde_json::from_str::<Ldtk>(include_str!("../assets/level.ldtk"))
+            .expect("Failed to open level.ldtk");
+        Dungeon::from(&lgtk)
+    }
+}
+#[derive(Clone)]
 pub struct Level {
     pub width: i32,
     pub length: i32,
@@ -190,4 +199,92 @@ impl From<&Ldtk> for Dungeon {
                 .collect(),
         }
     }
+}
+
+#[derive(Resource)]
+pub struct DungeonLevel(pub usize);
+
+pub fn setup_dungeon(
+    mut commands: Commands,
+    asset_server: ResMut<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    dungeon: Res<Dungeon>,
+    dungeon_level: Res<DungeonLevel>,
+) {
+    let level = dungeon.levels.get(dungeon_level.0).unwrap();
+    // light
+    commands.insert_resource(AmbientLight {
+        color: Color::WHITE,
+        brightness: 0.2,
+    });
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::Hsla {
+                hue: 0.0,
+                saturation: 0.2,
+                lightness: 1.0,
+                alpha: 1.0,
+            },
+            illuminance: 350.0,
+            ..default()
+        },
+        transform: Transform::from_xyz(50.0, 100.0, 100.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..default()
+    });
+
+    // texture, material
+    let wall_texture = asset_server.load("wall.png");
+    let material_floor = materials.add(StandardMaterial {
+        base_color: Color::GRAY,
+        ..default()
+    });
+    let material_wall = materials.add(StandardMaterial {
+        base_color_texture: Some(wall_texture),
+        ..default()
+    });
+
+    // mesh, scene, animation
+    let mesh_wall = meshes.add(shape::Quad::default().into());
+
+    let spawn_wall = |commands: &mut Commands, direction: &Direction, x: f32, z: f32| {
+        let transform = get_wall_transform(direction, x, z);
+        commands.spawn(MaterialMeshBundle {
+            mesh: mesh_wall.clone(),
+            material: material_wall.clone(),
+            transform,
+            ..default()
+        });
+    };
+    let spawn_floor = |commands: &mut Commands, x: f32, z: f32| {
+        commands.spawn(MaterialMeshBundle {
+            mesh: mesh_wall.clone(),
+            material: material_floor.clone(),
+            transform: Transform {
+                translation: Vec3::new(x, 0.0, z),
+                rotation: Quat::from_rotation_x(-PI * 0.5),
+                ..default()
+            },
+            ..default()
+        });
+    };
+
+    for tile in level.tiles.iter() {
+        for direction in tile.walls.iter() {
+            spawn_wall(&mut commands, direction, tile.x as f32, tile.z as f32);
+        }
+        spawn_floor(&mut commands, tile.x as f32, tile.z as f32);
+    }
+}
+
+fn get_wall_transform(direction: &Direction, x: f32, z: f32) -> Transform {
+    let mut transform = get_transform(direction, x, z);
+    transform.translation += match direction {
+        Direction::Up => Vec3::NEG_Z,
+        Direction::Right => Vec3::X,
+        Direction::Down => Vec3::Z,
+        Direction::Left => Vec3::NEG_X,
+    } * 0.5
+        + Vec3::new(0.0, 0.5, 0.0);
+    transform
 }

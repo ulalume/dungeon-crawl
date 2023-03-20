@@ -58,34 +58,6 @@ pub fn get_transform(direction: &Direction, x: f32, z: f32) -> Transform {
         ..default()
     }
 }
-pub fn get_cat_transform(direction: &Direction, x: f32, z: f32) -> Transform {
-    let mut transform = get_transform(direction, x, z);
-    transform.rotate_y(PI);
-    transform
-}
-pub fn get_wall_transform(direction: &Direction, x: f32, z: f32) -> Transform {
-    let mut transform = get_transform(direction, x, z);
-    transform.translation += match direction {
-        Direction::Up => Vec3::NEG_Z,
-        Direction::Right => Vec3::X,
-        Direction::Down => Vec3::Z,
-        Direction::Left => Vec3::NEG_X,
-    } * 0.5
-        + Vec3::new(0.0, 0.5, 0.0);
-    transform
-}
-pub fn get_player_transform(direction: &Direction, x: f32, z: f32) -> Transform {
-    let mut transform = get_transform(direction, x, z);
-    transform.translation += match direction {
-        Direction::Up => Vec3::Z,
-        Direction::Right => Vec3::NEG_X,
-        Direction::Down => Vec3::NEG_Z,
-        Direction::Left => Vec3::X,
-    } * 0.4
-        + Vec3::new(0.0, 0.4, 0.0);
-    transform
-}
-
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Direction {
     Right,
