@@ -1450,6 +1450,7 @@ dependencies = [
  "bevy_tweening",
  "serde",
  "serde_json",
+ "web-sys",
 ]
 
 [[package]]

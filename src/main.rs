@@ -39,7 +39,7 @@ fn main() {
         .add_plugin(TweeningPlugin)
         .add_plugin(WorldInspectorPlugin::default())
         .add_event::<MessageEvent>()
-        .add_event::<ResetDungeonEvent>()
+        .add_event::<DespawnDungeonEvent>()
         .add_event::<SpawnDungeonEvent>()
         .insert_resource(Msaa::Off)
         .init_resource::<Dungeon>()
@@ -47,7 +47,7 @@ fn main() {
         .add_startup_system(setup)
         .add_systems(
             (
-                reset_dungeon,
+                despawn_dungeon,
                 spawn_dungeon,
                 spawn_cats,
                 spawn_player,
@@ -61,17 +61,16 @@ fn main() {
                 update_player,
                 update_message,
                 update_button_style,
-                update_reset_button,
-                update_save_button,
-                update_load_button,
+                interact_reset_button,
+                interact_save_button,
+                interact_load_button,
             )
-                .chain()
                 .in_set(DungeonSet::Update),
         )
         .run();
 }
 
-pub struct ResetDungeonEvent(Option<Position>);
+pub struct DespawnDungeonEvent;
 pub struct SpawnDungeonEvent(Option<Position>);
 
 pub struct MessageEvent(String);
@@ -259,7 +258,7 @@ fn update_button_style(
     }
 }
 
-fn update_save_button(
+fn interact_save_button(
     position_query: Query<&Position, With<Player>>,
     level: Res<DungeonLevel>,
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
@@ -268,63 +267,63 @@ fn update_save_button(
         return;
     }
     for interaction in &interaction_query {
-        if *interaction == Interaction::Clicked {
-            let player_position = position_query.single();
-            save_game(player_position.clone(), DungeonLevel(level.0));
+        if *interaction != Interaction::Clicked {
+            continue;
         }
+        let player_position = position_query.single();
+        save_game(player_position.clone(), DungeonLevel(level.0));
     }
 }
 
-fn update_load_button(
+fn interact_load_button(
     mut commands: Commands,
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<LoadButton>)>,
-    mut reset_events: EventWriter<ResetDungeonEvent>,
+    mut despawn_events: EventWriter<DespawnDungeonEvent>,
+    mut spawn_events: EventWriter<SpawnDungeonEvent>,
 ) {
     for interaction in &interaction_query {
-        if *interaction == Interaction::Clicked {
-            let loaded_game_data = load_game();
-
-            match loaded_game_data {
-                Some((dungeon_level, position)) => {
-                    commands.insert_resource(dungeon_level);
-                    reset_events.send(ResetDungeonEvent(Some(position)));
-                }
-                _ => {
-                    commands.insert_resource(DungeonLevel(0));
-                    reset_events.send(ResetDungeonEvent(None));
-                }
-            }
+        if *interaction != Interaction::Clicked {
+            continue;
         }
+        let loaded_game_data = load_game();
+
+        despawn_events.send(DespawnDungeonEvent);
+        let (dungeon_level, position) = match loaded_game_data {
+            Some((dungeon_level, position)) => (dungeon_level, Some(position)),
+            None => (DungeonLevel(0), None),
+        };
+        commands.insert_resource(dungeon_level);
+        spawn_events.send(SpawnDungeonEvent(position));
     }
 }
 
-fn update_reset_button(
+fn interact_reset_button(
     mut commands: Commands,
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<ResetButton>)>,
-    mut reset_events: EventWriter<ResetDungeonEvent>,
+    mut despawn_events: EventWriter<DespawnDungeonEvent>,
+    mut spawn_events: EventWriter<SpawnDungeonEvent>,
 ) {
     for interaction in &interaction_query {
-        if *interaction == Interaction::Clicked {
-            commands.insert_resource(DungeonLevel(0));
-            reset_events.send(ResetDungeonEvent(None));
+        if *interaction != Interaction::Clicked {
+            continue;
         }
+        commands.insert_resource(DungeonLevel(0));
+        despawn_events.send(DespawnDungeonEvent);
+        spawn_events.send(SpawnDungeonEvent(None));
     }
 }
 
-fn reset_dungeon(
+fn despawn_dungeon(
     mut commands: Commands,
     query: Query<(Entity, &Transform, Without<Node>)>,
-    mut reset_events: EventReader<ResetDungeonEvent>,
-    mut spawn_events: EventWriter<SpawnDungeonEvent>,
+    mut reset_events: EventReader<DespawnDungeonEvent>,
 ) {
     if reset_events.is_empty() {
         return;
     }
+    for _ in reset_events.iter() {}
 
     for (entity, _, _) in query.iter() {
         commands.entity(entity).despawn();
     }
-
-    let pos = reset_events.iter().next().unwrap().0.clone();
-    spawn_events.send(SpawnDungeonEvent(pos));
 }
