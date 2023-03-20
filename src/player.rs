@@ -201,7 +201,7 @@ pub fn update_player(
     };
 }
 
-pub fn get_player_transform(direction: &Direction, x: f32, z: f32) -> Transform {
+fn get_player_transform(direction: &Direction, x: f32, z: f32) -> Transform {
     let mut transform = get_transform(direction, x, z);
     transform.translation += match direction {
         Direction::Up => Vec3::Z,

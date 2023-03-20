@@ -73,7 +73,7 @@ pub fn setup_cats_animation(
     }
 }
 
-pub fn get_cat_transform(direction: &Direction, x: f32, z: f32) -> Transform {
+fn get_cat_transform(direction: &Direction, x: f32, z: f32) -> Transform {
     let mut transform = get_transform(direction, x, z);
     transform.rotate_y(PI);
     transform
