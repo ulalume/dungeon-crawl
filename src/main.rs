@@ -202,6 +202,57 @@ fn setup(
 #[derive(Component)]
 struct Player;
 
+fn get_cannot_move_animator(
+    transform: &Transform,
+    now_position: &Position,
+    new_position: &Position,
+) -> Animator<Transform> {
+    let now_transform = get_player_transform(
+        &now_position.direction,
+        now_position.x as f32,
+        now_position.z as f32,
+    );
+    let between_transform = get_player_transform(
+        &new_position.direction,
+        now_position.x as f32 + (new_position.x as f32 - now_position.x as f32) * 0.1,
+        now_position.z as f32 + (new_position.z as f32 - now_position.z as f32) * 0.1,
+    );
+
+    let tween1 = Tween::new(
+        EaseFunction::QuadraticOut,
+        Duration::from_millis(50),
+        MyTransformLens {
+            start: (transform.translation, transform.rotation),
+            end: (between_transform.translation, between_transform.rotation),
+        },
+    );
+    let tween2 = Tween::new(
+        EaseFunction::QuadraticOut,
+        Duration::from_millis(100),
+        MyTransformLens {
+            start: (between_transform.translation, between_transform.rotation),
+            end: (now_transform.translation, now_transform.rotation),
+        },
+    );
+    Animator::<Transform>::new(tween1.then(tween2))
+}
+
+fn get_move_animator(transform: &Transform, new_position: &Position) -> Animator<Transform> {
+    let new_transform = get_player_transform(
+        &new_position.direction,
+        new_position.x as f32,
+        new_position.z as f32,
+    );
+
+    Animator::<Transform>::new(Tween::new(
+        EaseFunction::QuadraticOut,
+        Duration::from_millis(200),
+        MyTransformLens {
+            start: (transform.translation, transform.rotation),
+            end: (new_transform.translation, new_transform.rotation),
+        },
+    ))
+}
 fn update_player(
     keys: Res<Input<KeyCode>>,
     level: Res<Level>,
@@ -213,56 +264,61 @@ fn update_player(
         return;
     }
     let (entity, transform, mut position) = query.single_mut();
-    let mut changed = false;
     let tile = level.get_tile(position.x, position.z);
 
-    if keys.just_pressed(KeyCode::W) {
+    let (tweened, wall_position): (bool, Option<Position>) = if keys.just_pressed(KeyCode::W) {
         if tile.is_some() && !tile.unwrap().has_wall(&position.direction) {
             position.go_forward();
-            changed = true
+            (true, None)
+        } else {
+            let mut wall = position.clone();
+            wall.go_forward();
+            (true, Some(wall))
         }
-    }
-    if keys.just_pressed(KeyCode::S) {
+    } else if keys.just_pressed(KeyCode::S) {
         if tile.is_some() && !tile.unwrap().has_wall(&position.direction.reverse()) {
             position.go_backward();
-            changed = true
+            (true, None)
+        } else {
+            let mut wall = position.clone();
+            wall.go_backward();
+            (true, Some(wall))
         }
-    }
-    if keys.just_pressed(KeyCode::A) {
+    } else if keys.just_pressed(KeyCode::A) {
         position.rotate_left();
-        changed = true
-    }
-    if keys.just_pressed(KeyCode::D) {
+        (true, None)
+    } else if keys.just_pressed(KeyCode::D) {
         position.rotate_right();
-        changed = true
-    }
+        (true, None)
+    } else {
+        (false, None)
+    };
 
-    if !changed {
+    if !tweened {
+        return;
+    };
+
+    if let Some(wall_position) = wall_position {
+        commands.entity(entity).insert(get_cannot_move_animator(
+            transform,
+            &position,
+            &wall_position,
+        ));
         return;
     }
 
-    let new_transform =
-        get_player_transform(&position.direction, position.x as f32, position.z as f32);
-
     commands
         .entity(entity)
-        .insert(Animator::<Transform>::new(Tween::new(
-            EaseFunction::QuadraticOut,
-            Duration::from_millis(200),
-            MyTransformLens {
-                start: (transform.translation, transform.rotation),
-                end: (new_transform.translation, new_transform.rotation),
-            },
-        )));
+        .insert(get_move_animator(transform, &position));
 
     match level.get_entity(position.x, position.z) {
-        Some(entity) => {
-            if entity.message.is_some() {
-                message_events.send(MessageEvent(entity.message.clone().unwrap()))
+        Some(event_entity) => {
+            if event_entity.message.is_some() {
+                message_events.send(MessageEvent(event_entity.message.clone().unwrap()))
             }
         }
         _ => message_events.send(MessageEvent("".to_owned())),
-    }
+    };
 }
 
 fn check_descendant<T: Component>(
@@ -296,6 +352,9 @@ fn update_message(
     mut message_events: EventReader<MessageEvent>,
     mut query: Query<&mut Text, With<MessageText>>,
 ) {
+    if message_events.is_empty() {
+        return;
+    }
     let mut text = query.single_mut();
     for ev in message_events.iter() {
         text.sections[0].value = ev.0.clone()

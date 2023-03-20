@@ -4,7 +4,7 @@ use std::str::FromStr;
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Position {
     pub direction: Direction,
     pub x: i32,
