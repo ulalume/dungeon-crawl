@@ -1,5 +1,6 @@
 use crate::dungeon::{Dungeon, DungeonLevel, EntityType};
 use crate::position::{get_transform, Direction};
+use crate::SpawnDungeonEvent;
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
@@ -8,16 +9,18 @@ pub struct Cat;
 
 #[derive(Resource)]
 pub struct CatAnimation(pub Handle<AnimationClip>);
-
-pub fn setup_cats(
+pub fn spawn_cats(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     dungeon: Res<Dungeon>,
     dungeon_level: Res<DungeonLevel>,
+    spawn_events: EventReader<SpawnDungeonEvent>,
 ) {
+    if spawn_events.is_empty() {
+        return;
+    }
     let level = dungeon.levels.get(dungeon_level.0).unwrap();
     let scene_cat = asset_server.load("cat.glb#Scene0");
-    commands.insert_resource(CatAnimation(asset_server.load("cat.glb#Animation0")));
 
     let spawn_cat = |commands: &mut Commands, direction: &Direction, x: f32, z: f32| {
         commands.spawn((

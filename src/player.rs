@@ -1,20 +1,25 @@
 use crate::dungeon::{Dungeon, DungeonLevel, EntityType};
 use crate::position::{get_transform, Direction, Position};
-use crate::MessageEvent;
-use std::f32::consts::PI;
-use std::time::Duration;
-
+use crate::{MessageEvent, SpawnDungeonEvent};
 use bevy::prelude::*;
 use bevy_tweening::{lens::*, *};
+use std::f32::consts::PI;
+use std::time::Duration;
 
 #[derive(Component)]
 pub struct Player;
 
-pub fn setup_player(
+pub fn spawn_player(
     mut commands: Commands,
     dungeon: Res<Dungeon>,
     dungeon_level: Res<DungeonLevel>,
+    mut spawn_events: EventReader<SpawnDungeonEvent>,
 ) {
+    if spawn_events.is_empty() {
+        return;
+    }
+    let position_from_event = &spawn_events.iter().next().unwrap().0;
+
     let level = dungeon.levels.get(dungeon_level.0).unwrap();
     // spawn tiles
     let mut camera_transform = Transform::from_translation(Vec3::new(0.0, 0.5, 0.0));
@@ -23,17 +28,31 @@ pub fn setup_player(
         x: 0,
         z: 0,
     };
-    for entity in level.entities.iter() {
-        match entity.entity_type {
-            EntityType::PlayerStart => {
-                camera_transform =
-                    get_player_transform(&entity.direction, entity.x as f32, entity.z as f32);
-                player_position.x = entity.x;
-                player_position.z = entity.z;
-                player_position.direction = entity.direction.clone();
+    match position_from_event {
+        Some(position) => {
+            camera_transform =
+                get_player_transform(&position.direction, position.x as f32, position.z as f32);
+            player_position.x = position.x;
+            player_position.z = position.z;
+            player_position.direction = position.direction.clone();
+        }
+        None => {
+            for entity in level.entities.iter() {
+                match entity.entity_type {
+                    EntityType::PlayerStart => {
+                        camera_transform = get_player_transform(
+                            &entity.direction,
+                            entity.x as f32,
+                            entity.z as f32,
+                        );
+                        player_position.x = entity.x;
+                        player_position.z = entity.z;
+                        player_position.direction = entity.direction.clone();
+                    }
+                    _ => (),
+                };
             }
-            _ => (),
-        };
+        }
     }
     // spawn camera
     commands.spawn((

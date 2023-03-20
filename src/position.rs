@@ -1,10 +1,10 @@
+use ::serde::{Deserialize, Serialize};
+use bevy::prelude::*;
+use std::f32::consts::PI;
 use std::fmt;
 use std::str::FromStr;
 
-use bevy::prelude::*;
-use std::f32::consts::PI;
-
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Deserialize, Serialize)]
 pub struct Position {
     pub direction: Direction,
     pub x: i32,
@@ -58,7 +58,7 @@ pub fn get_transform(direction: &Direction, x: f32, z: f32) -> Transform {
         ..default()
     }
 }
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Deserialize, Serialize)]
 pub enum Direction {
     Right,
     Up,

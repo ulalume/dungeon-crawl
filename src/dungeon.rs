@@ -1,5 +1,7 @@
 use crate::ldtk::Ldtk;
 use crate::position::{get_transform, Direction};
+use crate::SpawnDungeonEvent;
+use ::serde::{Deserialize, Serialize};
 use bevy::prelude::*;
 use std::collections::HashSet;
 use std::convert::From;
@@ -23,14 +25,14 @@ pub struct Level {
     pub width: i32,
     pub length: i32,
     pub tiles: Vec<Tile>,
-    pub entities: Vec<Entity>,
+    pub entities: Vec<EventEntity>,
 }
 impl Level {
     pub fn get_tile(&self, x: i32, z: i32) -> Option<&Tile> {
         self.tiles.iter().find(|t| t.x == x && t.z == z)
     }
 
-    pub fn get_entity(&self, x: i32, z: i32) -> Option<&Entity> {
+    pub fn get_entity(&self, x: i32, z: i32) -> Option<&EventEntity> {
         let entity = self.entities.iter().find(|e| e.x == x && e.z == z);
 
         return if entity.is_none() {
@@ -55,7 +57,7 @@ impl Tile {
     }
 }
 #[derive(Clone)]
-pub struct Entity {
+pub struct EventEntity {
     pub x: i32,
     pub z: i32,
     pub entity_type: EntityType,
@@ -87,7 +89,7 @@ impl From<&Ldtk> for Dungeon {
                 .iter()
                 .map(|level| {
                     let mut tiles: Vec<Tile> = vec![];
-                    let mut entities: Vec<Entity> = vec![];
+                    let mut entities: Vec<EventEntity> = vec![];
                     let width = (level.px_wid / default_grid_size) as i32;
                     let length = (level.px_hei / default_grid_size) as i32;
 
@@ -139,7 +141,7 @@ impl From<&Ldtk> for Dungeon {
                                                     _ => None,
                                                 }
                                             });
-                                        Entity {
+                                        EventEntity {
                                             x: x,
                                             z: z,
                                             entity_type: identifier,
@@ -201,17 +203,21 @@ impl From<&Ldtk> for Dungeon {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Serialize, Deserialize)]
 pub struct DungeonLevel(pub usize);
 
-pub fn setup_dungeon(
+pub fn spawn_dungeon(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     dungeon: Res<Dungeon>,
     dungeon_level: Res<DungeonLevel>,
+    spawn_events: EventReader<SpawnDungeonEvent>,
 ) {
+    if spawn_events.is_empty() {
+        return;
+    }
     let level = dungeon.levels.get(dungeon_level.0).unwrap();
     // light
     commands.insert_resource(AmbientLight {
