@@ -243,10 +243,12 @@ pub fn spawn_dungeon(
     let wall_texture = asset_server.load("wall.png");
     let material_floor = materials.add(StandardMaterial {
         base_color: Color::GRAY,
+        unlit: true,
         ..default()
     });
     let material_wall = materials.add(StandardMaterial {
         base_color_texture: Some(wall_texture),
+        unlit: true,
         ..default()
     });
 
