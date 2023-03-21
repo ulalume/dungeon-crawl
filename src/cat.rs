@@ -9,6 +9,14 @@ pub struct Cat;
 
 #[derive(Resource)]
 pub struct CatAnimation(pub Handle<AnimationClip>);
+
+impl FromWorld for CatAnimation {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        CatAnimation(asset_server.load("cat.glb#Animation0"))
+    }
+}
+
 pub fn spawn_cats(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,

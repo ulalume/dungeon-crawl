@@ -20,13 +20,12 @@ enum DungeonSet {
 }
 
 fn main() {
-    let window = Window {
+    let primary_window = Some(Window {
         resolution: (640.0, 480.0).into(),
         resizable: true,
         title: "Dungeon".to_string(),
         ..default()
-    };
-    let primary_window = Some(window);
+    });
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -43,6 +42,8 @@ fn main() {
         .add_event::<SpawnDungeonEvent>()
         .insert_resource(Msaa::Off)
         .init_resource::<Dungeon>()
+        .init_resource::<UiFont>()
+        .init_resource::<CatAnimation>()
         .configure_set(DungeonSet::Spawn.before(DungeonSet::Update))
         .add_startup_system(setup)
         .add_systems(
@@ -87,12 +88,20 @@ struct LoadButton;
 #[derive(Component)]
 struct ResetButton;
 
+#[derive(Resource)]
+struct UiFont(Handle<Font>);
+impl FromWorld for UiFont {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        UiFont(asset_server.load("k8x12.ttf"))
+    }
+}
+
 fn setup(
     mut commands: Commands,
-    asset_server: ResMut<AssetServer>,
+    ui_font: Res<UiFont>,
     mut spawn_event: EventWriter<SpawnDungeonEvent>,
 ) {
-    commands.insert_resource(CatAnimation(asset_server.load("cat.glb#Animation0")));
     commands
         .spawn(NodeBundle {
             style: Style {
@@ -135,7 +144,7 @@ fn setup(
                             parent.spawn(TextBundle::from_section(
                                 "Reset",
                                 TextStyle {
-                                    font: asset_server.load("k8x12.ttf"),
+                                    font: ui_font.0.clone(),
                                     font_size: 12.0,
                                     color: Color::WHITE,
                                 },
@@ -160,7 +169,7 @@ fn setup(
                             parent.spawn(TextBundle::from_section(
                                 "Load",
                                 TextStyle {
-                                    font: asset_server.load("k8x12.ttf"),
+                                    font: ui_font.0.clone(),
                                     font_size: 12.0,
                                     color: Color::WHITE,
                                 },
@@ -185,7 +194,7 @@ fn setup(
                             parent.spawn(TextBundle::from_section(
                                 "Save",
                                 TextStyle {
-                                    font: asset_server.load("k8x12.ttf"),
+                                    font: ui_font.0.clone(),
                                     font_size: 12.0,
                                     color: Color::WHITE,
                                 },
@@ -208,7 +217,7 @@ fn setup(
                         TextBundle::from_section(
                             "",
                             TextStyle {
-                                font: asset_server.load("k8x12.ttf"),
+                                font: ui_font.0.clone(),
                                 font_size: 24.0,
                                 color: Color::WHITE,
                             },
