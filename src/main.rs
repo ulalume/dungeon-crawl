@@ -245,15 +245,9 @@ fn update_button_style(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => {
-                *color = PRESSED_BUTTON.into();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-            }
+            Interaction::Clicked => *color = PRESSED_BUTTON.into(),
+            Interaction::Hovered => *color = HOVERED_BUTTON.into(),
+            Interaction::None => *color = NORMAL_BUTTON.into(),
         }
     }
 }
