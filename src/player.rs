@@ -227,7 +227,7 @@ fn get_player_transform(direction: &Direction, x: f32, z: f32) -> Transform {
         Direction::Right => Vec3::NEG_X,
         Direction::Down => Vec3::NEG_Z,
         Direction::Left => Vec3::X,
-    } * 0.4
-        + Vec3::new(0.0, 0.4, 0.0);
+    } * 0.49
+        + Vec3::new(0.0, 0.35, 0.0);
     transform
 }
