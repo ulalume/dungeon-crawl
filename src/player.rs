@@ -1,9 +1,6 @@
 use crate::dungeon::{Dungeon, DungeonLevel, EntityType};
-use crate::outline_camera::OutlineMaterial;
 use crate::position::{get_transform, Direction, Position};
 use crate::{MessageEvent, SpawnDungeonEvent};
-use bevy::core_pipeline::prepass::{DepthPrepass, NormalPrepass};
-use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy_tweening::{lens::*, *};
 use std::f32::consts::PI;
@@ -17,8 +14,6 @@ pub fn spawn_player(
     dungeon: Res<Dungeon>,
     dungeon_level: Res<DungeonLevel>,
     mut spawn_events: EventReader<SpawnDungeonEvent>,
-    mut prepass_output_materials: ResMut<Assets<OutlineMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     if spawn_events.is_empty() {
         return;
