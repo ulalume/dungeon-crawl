@@ -1,6 +1,9 @@
 use crate::dungeon::{Dungeon, DungeonLevel, EntityType};
+use crate::outline_camera::OutlineMaterial;
 use crate::position::{get_transform, Direction, Position};
 use crate::{MessageEvent, SpawnDungeonEvent};
+use bevy::core_pipeline::prepass::{DepthPrepass, NormalPrepass};
+use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy_tweening::{lens::*, *};
 use std::f32::consts::PI;
@@ -14,6 +17,8 @@ pub fn spawn_player(
     dungeon: Res<Dungeon>,
     dungeon_level: Res<DungeonLevel>,
     mut spawn_events: EventReader<SpawnDungeonEvent>,
+    mut prepass_output_materials: ResMut<Assets<OutlineMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     if spawn_events.is_empty() {
         return;
@@ -55,18 +60,38 @@ pub fn spawn_player(
         }
     }
     // spawn camera
-    commands.spawn((
-        Player,
-        player_position,
-        Camera3dBundle {
-            transform: camera_transform,
-            projection: Projection::Perspective(PerspectiveProjection {
-                fov: PI / 2.5,
+    commands
+        .spawn((
+            Player,
+            player_position,
+            SpatialBundle {
+                transform: camera_transform,
                 ..default()
-            }),
-            ..default()
-        },
-    ));
+            },
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Camera3dBundle {
+                    projection: Projection::Perspective(PerspectiveProjection {
+                        fov: PI / 2.5,
+                        ..default()
+                    }),
+                    ..default()
+                },
+                DepthPrepass,
+                NormalPrepass,
+            ));
+            // post effect
+            parent.spawn((
+                MaterialMeshBundle {
+                    mesh: meshes.add(shape::Quad::new(Vec2::splat(0.6)).into()),
+                    material: prepass_output_materials.add(OutlineMaterial::default()),
+                    transform: Transform::from_xyz(0.0, 0.0, -0.5),
+                    ..default()
+                },
+                NotShadowCaster,
+            ));
+        });
 }
 
 fn get_cannot_move_animator(

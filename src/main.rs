@@ -1,14 +1,17 @@
 mod cat;
 mod dungeon;
 mod ldtk;
+mod outline_camera;
 mod player;
 mod position;
 mod saving;
 use bevy::{prelude::*, window::Window};
+use bevy_inspector_egui::quick::AssetInspectorPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_tweening::*;
 use cat::*;
 use dungeon::{spawn_dungeon, Dungeon, DungeonLevel};
+use outline_camera::OutlineMaterial;
 use player::*;
 use position::Position;
 use saving::*;
@@ -35,8 +38,14 @@ fn main() {
                     ..default()
                 }),
         )
+        .register_type::<OutlineMaterial>()
         .add_plugin(TweeningPlugin)
+        .add_plugin(AssetInspectorPlugin::<OutlineMaterial>::default())
         .add_plugin(WorldInspectorPlugin::default())
+        .add_plugin(MaterialPlugin::<OutlineMaterial> {
+            prepass_enabled: false,
+            ..default()
+        })
         .add_event::<MessageEvent>()
         .add_event::<DespawnDungeonEvent>()
         .add_event::<SpawnDungeonEvent>()
