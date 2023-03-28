@@ -65,27 +65,22 @@ pub fn spawn_player(
             },
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Camera3dBundle {
-                    projection: Projection::Perspective(PerspectiveProjection {
-                        fov: PI / 2.5,
-                        ..default()
-                    }),
+            parent.spawn(Camera3dBundle {
+                projection: Projection::Perspective(PerspectiveProjection {
+                    fov: PI / 2.5,
+                    ..default()
+                }),
+                ..default()
+            });
+            parent.spawn(PointLightBundle {
+                point_light: PointLight {
+                    intensity: 300.0, // lumens - roughly a 100W non-halogen incandescent bulb
+                    color: Color::WHITE,
+                    shadows_enabled: true,
                     ..default()
                 },
-                DepthPrepass,
-                NormalPrepass,
-            ));
-            // post effect
-            parent.spawn((
-                MaterialMeshBundle {
-                    mesh: meshes.add(shape::Quad::new(Vec2::splat(0.6)).into()),
-                    material: prepass_output_materials.add(OutlineMaterial::default()),
-                    transform: Transform::from_xyz(0.0, 0.0, -0.5),
-                    ..default()
-                },
-                NotShadowCaster,
-            ));
+                ..default()
+            });
         });
 }
 

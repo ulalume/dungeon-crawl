@@ -220,10 +220,6 @@ pub fn spawn_dungeon(
     }
     let level = dungeon.levels.get(dungeon_level.0).unwrap();
     // light
-    commands.insert_resource(AmbientLight {
-        color: Color::WHITE,
-        brightness: 0.2,
-    });
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             color: Color::Hsla {
@@ -232,7 +228,7 @@ pub fn spawn_dungeon(
                 lightness: 1.0,
                 alpha: 1.0,
             },
-            illuminance: 350.0,
+            illuminance: 0.0,
             ..default()
         },
         transform: Transform::from_xyz(50.0, 100.0, 100.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -243,12 +239,12 @@ pub fn spawn_dungeon(
     let wall_texture = asset_server.load("wall.png");
     let material_floor = materials.add(StandardMaterial {
         base_color: Color::GRAY,
-        unlit: true,
+        unlit: false,
         ..default()
     });
     let material_wall = materials.add(StandardMaterial {
         base_color_texture: Some(wall_texture),
-        unlit: true,
+        unlit: false,
         ..default()
     });
 
