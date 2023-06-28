@@ -1,4 +1,4 @@
-use crate::ldtk::Ldtk;
+use crate::ldtk::Coordinate as Ldtk;
 use crate::position::{get_transform, Direction};
 use crate::SpawnDungeonEvent;
 use ::serde::{Deserialize, Serialize};
