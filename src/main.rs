@@ -4,7 +4,10 @@ mod ldtk;
 mod player;
 mod position;
 mod saving;
-use bevy::{prelude::*, window::Window};
+use bevy::{
+    prelude::*,
+    window::{Window, WindowMode},
+};
 use bevy_tweening::*;
 use cat::*;
 use dungeon::{spawn_dungeon, Dungeon, DungeonLevel};
@@ -12,19 +15,15 @@ use player::*;
 use position::Position;
 use saving::*;
 
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-enum DungeonSet {
-    Spawn,
-    Update,
-}
-
 fn main() {
     let primary_window = Some(Window {
+        mode: WindowMode::BorderlessFullscreen, // hack for macOS 14
         resolution: (640.0, 480.0).into(),
         resizable: true,
         title: "Dungeon".to_string(),
         ..default()
     });
+
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -34,7 +33,7 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugin(TweeningPlugin)
+        .add_plugins(TweeningPlugin)
         .add_event::<MessageEvent>()
         .add_event::<DespawnDungeonEvent>()
         .add_event::<SpawnDungeonEvent>()
@@ -42,36 +41,36 @@ fn main() {
         .init_resource::<Dungeon>()
         .init_resource::<UiFont>()
         .init_resource::<CatAnimation>()
-        .configure_set(DungeonSet::Spawn.before(DungeonSet::Update))
-        .add_startup_system(setup)
+        .add_systems(Startup, setup)
         .add_systems(
+            Update,
             (
                 despawn_dungeon,
                 spawn_dungeon,
                 spawn_cats,
                 spawn_player,
                 setup_cats_animation,
+                (
+                    update_player,
+                    update_message,
+                    update_button_style,
+                    interact_reset_button,
+                    interact_save_button,
+                    interact_load_button,
+                ),
             )
-                .chain()
-                .in_set(DungeonSet::Spawn),
-        )
-        .add_systems(
-            (
-                update_player,
-                update_message,
-                update_button_style,
-                interact_reset_button,
-                interact_save_button,
-                interact_load_button,
-            )
-                .in_set(DungeonSet::Update),
+                .chain(),
         )
         .run();
 }
 
+#[derive(Event)]
 pub struct DespawnDungeonEvent;
+
+#[derive(Event)]
 pub struct SpawnDungeonEvent(Option<Position>);
 
+#[derive(Event)]
 pub struct MessageEvent(String);
 
 #[derive(Component)]
@@ -103,7 +102,8 @@ fn setup(
     commands
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 align_items: AlignItems::Stretch,
                 justify_content: JustifyContent::SpaceBetween,
                 flex_direction: FlexDirection::Column,
@@ -115,7 +115,8 @@ fn setup(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Px(34.0)),
+                        width: Val::Percent(100.0),
+                        height: Val::Px(34.0),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::FlexEnd,
                         ..default()
@@ -128,7 +129,8 @@ fn setup(
                             ResetButton,
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Px(48.0), Val::Px(24.0)),
+                                    width: Val::Px(48.0),
+                                    height: Val::Px(24.0),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
                                     margin: UiRect::all(Val::Px(5.0)),
@@ -153,7 +155,8 @@ fn setup(
                             LoadButton,
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Px(48.0), Val::Px(24.0)),
+                                    width: Val::Px(48.0),
+                                    height: Val::Px(24.0),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
                                     margin: UiRect::all(Val::Px(5.0)),
@@ -178,7 +181,8 @@ fn setup(
                             SaveButton,
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Px(48.0), Val::Px(24.0)),
+                                    width: Val::Px(48.0),
+                                    height: Val::Px(24.0),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
                                     margin: UiRect::all(Val::Px(5.0)),
@@ -202,7 +206,8 @@ fn setup(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        width: Val::Px(100.0),
+                        height: Val::Px(100.0),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
                         ..default()
@@ -252,7 +257,7 @@ fn update_button_style(
 ) {
     for (interaction, mut color) in &mut interaction_query {
         match *interaction {
-            Interaction::Clicked => *color = PRESSED_BUTTON.into(),
+            Interaction::Pressed => *color = PRESSED_BUTTON.into(),
             Interaction::Hovered => *color = HOVERED_BUTTON.into(),
             Interaction::None => *color = NORMAL_BUTTON.into(),
         }
@@ -268,7 +273,7 @@ fn interact_save_button(
         return;
     }
     for interaction in &interaction_query {
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         }
         let player_position = position_query.single();
@@ -283,7 +288,7 @@ fn interact_load_button(
     mut spawn_events: EventWriter<SpawnDungeonEvent>,
 ) {
     for interaction in &interaction_query {
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         }
         let loaded_game_data = load_game();
@@ -305,7 +310,7 @@ fn interact_reset_button(
     mut spawn_events: EventWriter<SpawnDungeonEvent>,
 ) {
     for interaction in &interaction_query {
-        if *interaction != Interaction::Clicked {
+        if *interaction != Interaction::Pressed {
             continue;
         }
         commands.insert_resource(DungeonLevel(0));
