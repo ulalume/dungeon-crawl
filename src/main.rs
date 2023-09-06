@@ -15,10 +15,17 @@ use player::*;
 use position::Position;
 use saving::*;
 
+const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+
+const WINDOW_WIDTH: f32 = 320.0;
+const WINDOW_HEIGHT: f32 = 224.0;
+
 fn main() {
     let primary_window = Some(Window {
         mode: WindowMode::BorderlessFullscreen, // hack for macOS 14
-        resolution: (640.0, 480.0).into(),
+        resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
         resizable: true,
         title: "Dungeon".to_string(),
         ..default()
@@ -54,6 +61,7 @@ fn main() {
                     update_player,
                     update_message,
                     update_button_style,
+                    interact_window_resize_button,
                     interact_reset_button,
                     interact_save_button,
                     interact_load_button,
@@ -75,6 +83,9 @@ pub struct MessageEvent(String);
 
 #[derive(Component)]
 struct MessageText;
+
+#[derive(Component)]
+struct WindowResizeButton;
 
 #[derive(Component)]
 struct SaveButton;
@@ -112,6 +123,23 @@ fn setup(
             ..default()
         })
         .with_children(|parent| {
+            let button_bundle = ButtonBundle {
+                style: Style {
+                    width: Val::Px(48.0),
+                    height: Val::Px(24.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::all(Val::Px(5.0)),
+                    ..default()
+                },
+                background_color: NORMAL_BUTTON.into(),
+                ..default()
+            };
+            let text_style = TextStyle {
+                font: ui_font.0.clone(),
+                font_size: 12.0,
+                color: Color::WHITE,
+            };
             parent
                 .spawn(NodeBundle {
                     style: Style {
@@ -125,82 +153,24 @@ fn setup(
                 })
                 .with_children(|parent| {
                     parent
-                        .spawn((
-                            ResetButton,
-                            ButtonBundle {
-                                style: Style {
-                                    width: Val::Px(48.0),
-                                    height: Val::Px(24.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    margin: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                },
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                        ))
+                        .spawn((WindowResizeButton, button_bundle.clone()))
                         .with_children(|parent| {
-                            parent.spawn(TextBundle::from_section(
-                                "Reset",
-                                TextStyle {
-                                    font: ui_font.0.clone(),
-                                    font_size: 12.0,
-                                    color: Color::WHITE,
-                                },
-                            ));
+                            parent.spawn(TextBundle::from_section("Resize", text_style.clone()));
                         });
                     parent
-                        .spawn((
-                            LoadButton,
-                            ButtonBundle {
-                                style: Style {
-                                    width: Val::Px(48.0),
-                                    height: Val::Px(24.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    margin: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                },
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                        ))
+                        .spawn((ResetButton, button_bundle.clone()))
                         .with_children(|parent| {
-                            parent.spawn(TextBundle::from_section(
-                                "Load",
-                                TextStyle {
-                                    font: ui_font.0.clone(),
-                                    font_size: 12.0,
-                                    color: Color::WHITE,
-                                },
-                            ));
+                            parent.spawn(TextBundle::from_section("Reset", text_style.clone()));
                         });
                     parent
-                        .spawn((
-                            SaveButton,
-                            ButtonBundle {
-                                style: Style {
-                                    width: Val::Px(48.0),
-                                    height: Val::Px(24.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    margin: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                },
-                                background_color: NORMAL_BUTTON.into(),
-                                ..default()
-                            },
-                        ))
+                        .spawn((LoadButton, button_bundle.clone()))
                         .with_children(|parent| {
-                            parent.spawn(TextBundle::from_section(
-                                "Save",
-                                TextStyle {
-                                    font: ui_font.0.clone(),
-                                    font_size: 12.0,
-                                    color: Color::WHITE,
-                                },
-                            ));
+                            parent.spawn(TextBundle::from_section("Load", text_style.clone()));
+                        });
+                    parent
+                        .spawn((SaveButton, button_bundle))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section("Save", text_style));
                         });
                 });
             parent
@@ -244,10 +214,6 @@ fn update_message(
         text.sections[0].value = ev.0.clone()
     }
 }
-
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 fn update_button_style(
     mut interaction_query: Query<
@@ -300,6 +266,20 @@ fn interact_load_button(
         };
         commands.insert_resource(dungeon_level);
         spawn_events.send(SpawnDungeonEvent(position));
+    }
+}
+
+fn interact_window_resize_button(
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<WindowResizeButton>)>,
+    mut windows: Query<&mut Window>,
+) {
+    for interaction in &interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let mut window = windows.single_mut();
+        window.mode = WindowMode::Windowed;
+        window.resolution.set(WINDOW_WIDTH, WINDOW_HEIGHT);
     }
 }
 
