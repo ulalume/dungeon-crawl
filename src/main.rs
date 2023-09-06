@@ -62,6 +62,7 @@ fn main() {
                     update_message,
                     update_button_style,
                     interact_window_resize_button,
+                    interact_checker_button,
                     interact_reset_button,
                     interact_save_button,
                     interact_load_button,
@@ -85,6 +86,9 @@ pub struct MessageEvent(String);
 struct MessageText;
 
 #[derive(Component)]
+struct CheckerButton;
+
+#[derive(Component)]
 struct WindowResizeButton;
 
 #[derive(Component)]
@@ -95,6 +99,9 @@ struct LoadButton;
 
 #[derive(Component)]
 struct ResetButton;
+
+#[derive(Component)]
+struct CheckerImage;
 
 #[derive(Resource)]
 struct UiFont(Handle<Font>);
@@ -107,11 +114,27 @@ impl FromWorld for UiFont {
 
 fn setup(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     ui_font: Res<UiFont>,
     mut spawn_event: EventWriter<SpawnDungeonEvent>,
 ) {
+    commands.spawn((
+        CheckerImage,
+        ImageBundle {
+            image: UiImage {
+                texture: asset_server.load("checker.png"),
+                ..default()
+            },
+            style: Style {
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            ..default()
+        },
+    ));
     commands
         .spawn(NodeBundle {
+            z_index: ZIndex::Local(100),
             style: Style {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
@@ -125,11 +148,11 @@ fn setup(
         .with_children(|parent| {
             let button_bundle = ButtonBundle {
                 style: Style {
-                    width: Val::Px(48.0),
-                    height: Val::Px(24.0),
+                    width: Val::Px(40.0),
+                    height: Val::Px(20.0),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
-                    margin: UiRect::all(Val::Px(5.0)),
+                    margin: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
                 background_color: NORMAL_BUTTON.into(),
@@ -152,6 +175,11 @@ fn setup(
                     ..default()
                 })
                 .with_children(|parent| {
+                    parent
+                        .spawn((CheckerButton, button_bundle.clone()))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section("Checker", text_style.clone()));
+                        });
                     parent
                         .spawn((WindowResizeButton, button_bundle.clone()))
                         .with_children(|parent| {
@@ -226,6 +254,23 @@ fn update_button_style(
             Interaction::Pressed => *color = PRESSED_BUTTON.into(),
             Interaction::Hovered => *color = HOVERED_BUTTON.into(),
             Interaction::None => *color = NORMAL_BUTTON.into(),
+        }
+    }
+}
+fn interact_checker_button(
+    mut image_style: Query<&mut Style, With<CheckerImage>>,
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<CheckerButton>)>,
+) {
+    for interaction in &interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let mut style = image_style.single_mut();
+
+        if style.display == Display::None {
+            style.display = Display::Flex;
+        } else {
+            style.display = Display::None;
         }
     }
 }
